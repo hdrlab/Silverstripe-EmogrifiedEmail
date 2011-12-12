@@ -2,7 +2,7 @@
 
 ## Maintainer Contact
 
- * Hans de Ruiter (Nickname: ischommer) <hans (at) hdrlab (dot) co (dot) nz>
+ * Hans de Ruiter <hans (at) hdrlab (dot) co (dot) nz>
 
 ## Requirements
 
