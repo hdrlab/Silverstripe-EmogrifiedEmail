@@ -8,12 +8,16 @@
  * - Code from the silverstripe-newsletter-pagesource module.
  *
  * @author Hans de Ruiter
+ *
+ * @version 1.1 -- 17/01/2012
+ *              - Added a check to see if it's a plain-text email, so that 
+ *                plain-text content is left unchanged
+ * @version 1.0
  */
 class EmogrifiedEmail extends Email {
 
 	protected function parseVariables($isPlain = false) {
 		parent::parseVariables($isPlain);
-
 		// if it's an html email, filter it through emogrifier
 		if (!$isPlain && preg_match("/([\<])([^\>]{1,})*([\>])/i", $this->body)){
 			$this->body = $this->emogrify($this->body);
@@ -40,6 +44,12 @@ class EmogrifiedEmail extends Email {
 
 		if (!$encoding) {
 			$encoding = 'UTF-8';
+		}
+		
+		if(!preg_match("/([\<])([^\>]{1,})*([\>])/i", $this->body))
+		{
+			// The content is plain text
+			return $content;
 		}
 
 		$document = new DOMDocument();
