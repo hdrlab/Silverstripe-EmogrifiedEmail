@@ -182,7 +182,7 @@ class EmogrifiedEmail extends Email {
 	static function relToAbsoluteURL($link, $baseURL) {
 		if($baseURL[strlen($baseURL)-1] != '/')
 		{
-			$baseURL[] = '/';
+			$baseURL .= '/';
 		}
 		$absoluteURL = $baseURL . $link;
 		$absoluteURL = explode('/', $absoluteURL);
