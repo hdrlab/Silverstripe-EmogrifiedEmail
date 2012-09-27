@@ -68,6 +68,7 @@ class EmogrifiedEmail extends Email {
 			if (file_exists($file)) {
 				$contents = trim(file_get_contents($file));
 				$contents = EmogrifiedEmail::relToAbsoluteURLs($contents, $baseURL);
+				
 				if ($contents && (!$media || in_array($media, array('all', 'screen')))) {
 					$css[] = $contents;
 				}
@@ -169,7 +170,40 @@ class EmogrifiedEmail extends Email {
 	static function relToAbsoluteURLs($content, $baseURL) {
 		$baseURL = HTTP::absoluteURLs($baseURL);
 		$content = str_replace('$CurrentPageURL', $_SERVER['REQUEST_URI'], $content);
-		return HTTP::urlRewriter($content, '(substr($URL,0,1) == "/") ? ( Director::protocolAndHost() . $URL ) : ( (ereg("^[A-Za-z]+:", $URL)) ? $URL : EmogrifiedEmail::relToAbsoluteURL($URL, \'' . $baseURL . '/' . '\'))' );
+		return self::urlRewriter($content, '(substr($URL,0,1) == "/") ? ( "http://" . Director::baseURL() . $URL ) : ( (ereg("^[A-Za-z]+:", $URL)) ? $URL : EmogrifiedEmail::relToAbsoluteURL($URL, \'' . $baseURL . '/' . '\'))' );
+	}
+	
+	/*
+	 * Rewrite all the URLs in the given content, evaluating the given string as PHP code
+	 *
+	 * Put $URL where you want the URL to appear, however, you can't embed $URL in strings
+	 * Some example code:
+	 *  '"../../" . $URL'
+	 *  'myRewriter($URL)'
+	 *  '(substr($URL,0,1)=="/") ? "../" . substr($URL,1) : $URL'
+	 */
+	static function urlRewriter($content, $code) {
+		$attribs = array("src","background","a" => "href","link" => "href", "base" => "href");
+		foreach($attribs as $tag => $attrib) {
+			if(!is_numeric($tag)) $tagPrefix = "$tag ";
+			else $tagPrefix = "";
+
+			$regExps[] = "/(<{$tagPrefix}[^>]*$attrib *= *\")([^\"]*)(\")/ie";
+			$regExps[] = "/(<{$tagPrefix}[^>]*$attrib *= *')([^']*)(')/ie";
+			$regExps[] = "/(<{$tagPrefix}[^>]*$attrib *= *)([^\"' ]*)( )/ie";
+		}
+		$regExps[] = '/(background-image:[^;]*url *\()([^)]+)(\))/ie';
+		$regExps[] = '/(background:[^;]*url *\()([^)]+)(\))/ie';
+		$regExps[] = '/(list-style-image:[^;]*url *\()([^)]+)(\))/ie';
+
+		// Make
+		$code = 'stripslashes("$1") . (' . str_replace('$URL', 'stripslashes("$2")', $code) . ') . stripslashes("$3")';
+
+		foreach($regExps as $regExp) {
+			$content = preg_replace($regExp, $code, $content);
+		}
+
+		return $content;
 	}
 	
 	/** Convert a relative URL to an absolute URL.
@@ -180,10 +214,38 @@ class EmogrifiedEmail extends Email {
 	 * @return string the absolute URL
 	 */
 	static function relToAbsoluteURL($link, $baseURL) {
+		// If the link is surrounded by parentheses, then we want to strip them 
+		// away
+		$pre = '';
+		$post = '';
+		$linkLen = strlen($link);
+		if($linkLen > 0)
+		{
+			if($link[0] == '"' || $link[0] == "'") { 
+				$pre = $link[0];
+				$link = substr($link, 1);
+				$linkLen -= 1;
+			}
+			if($link[$linkLen - 1] == '"' || $link[0] == "'") { 
+				$post = $link[$linkLen - 1]; 
+				$linkLen -= 1;
+				$link = substr($link, 0, $linkLen);
+				
+			}	
+		}
+		
 		if($baseURL[strlen($baseURL)-1] != '/')
 		{
 			$baseURL .= '/';
 		}
+		
+		// Email programs don't like HTTPS, so downgrade to HTTP
+		$https = 'https';
+		if(stripos($baseURL, $https) === 0)
+		{
+			$baseURL = 'http' . substr($baseURL, strlen($https));
+		}
+		
 		$absoluteURL = $baseURL . $link;
 		$absoluteURL = explode('/', $absoluteURL);
 		$keys = array_keys($absoluteURL, '..');
@@ -196,6 +258,6 @@ class EmogrifiedEmail extends Email {
 		$absoluteURL = implode('/', $absoluteURL);
 		$absoluteURL = str_replace('./', '', $absoluteURL);
 		
-		return $absoluteURL;
+		return $pre . $absoluteURL . $post;
 	}
 }
