@@ -37,15 +37,14 @@ class EmogrifiedEmail extends Email {
 
 		// order here is seemingly important; 'tidy' seems to strip stuff important for detecting encoding??
 		$encoding	= mb_detect_encoding($content, mb_detect_order(), true);
+		if (!$encoding) {
+			$encoding = 'UTF-8';
+		}
 		$content	= $this->tidy($content, $encoding);
 		$content	= mb_convert_encoding($content, 'HTML-ENTITIES', $encoding);
 		
 		$css = array();
 
-		if (!$encoding) {
-			$encoding = 'UTF-8';
-		}
-		
 		if(!preg_match("/([\<])([^\>]{1,})*([\>])/i", $this->body))
 		{
 			// The content is plain text
